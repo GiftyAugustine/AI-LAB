@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Ingredients - SmartKitchen.AI</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&family=Pacifico&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="upload-page">
+  <div class="upload-container">
+    <h1>Upload Your Ingredients</h1>
+    <p>Take or upload a photo to get AI-generated recipe suggestions.</p>
+
+    <form id="uploadForm">
+      <input type="file" id="imageUpload" accept="image/*" required>
+      <button type="submit">Get Recipe Suggestions</button>
+    </form>
+
+    <div id="preview"></div>
+    <div id="result" class="result-box"></div>
+
+    <a href="index.html" class="back-link">← Back to Home</a>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
