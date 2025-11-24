@@ -2,44 +2,55 @@ document.addEventListener('DOMContentLoaded', () => {
   const uploadForm = document.getElementById('uploadForm');
   const imageUpload = document.getElementById('imageUpload');
   const preview = document.getElementById('preview');
-  const resultBox = document.getElementById('result');
 
   if (uploadForm) {
     uploadForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      if (imageUpload.files.length === 0) {
-        alert('Please upload an image first.');
-        return;
-      }
+      if (imageUpload.files.length > 0) {
+        const file = imageUpload.files[0];
+        const formData = new FormData();
+        formData.append("image", file);
 
-      const file = imageUpload.files[0];
-      const reader = new FileReader();
+        // Show preview
+        const reader = new FileReader();
+        reader.onload = () => {
+          preview.innerHTML = `<img src="${reader.result}" alt="Uploaded Image" />`;
+        };
+        reader.readAsDataURL(file);
 
-      // Preview uploaded image
-      reader.onload = () => {
-        preview.innerHTML = `<img src="${reader.result}" alt="Uploaded Image" />`;
-      };
-      reader.readAsDataURL(file);
+        // Call backend
+        try {
+          const response = await fetch("http://127.0.0.1:5001/analyze", {
+            method: "POST",
+            body: formData
+          });
 
-      // Prepare data to send to backend
-      const formData = new FormData();
-      formData.append('image', file);
+          const data = await response.json();
 
-      resultBox.innerHTML = "<p>Analyzing image with AI... please wait ⏳</p>";
+          // Show ingredients + recipes
+          if (data.ingredients) {
+            preview.innerHTML += `
+              <h2>Detected Ingredients:</h2>
+              <p>${data.ingredients}</p>
+            `;
+          }
 
-      try {
-        const res = await fetch("http://127.0.0.1:5001/analyze", {
-          method: "POST",
-          body: formData
-        });
+          if (data.recipes && data.recipes.length > 0) {
+            let recipeHTML = "<h2>Suggested Recipes:</h2><ul>";
+            data.recipes.forEach(r => {
+              recipeHTML += `<li><strong>${r.name}</strong> – ${r.ingredients}</li>`;
+            });
+            recipeHTML += "</ul>";
+            preview.innerHTML += recipeHTML;
+          } else {
+            preview.innerHTML += `<p>No matching recipes found.</p>`;
+          }
 
-        const data = await res.json();
-
-        resultBox.innerHTML = `<h3>🍳 Suggested Recipes:</h3><p>${data.result}</p>`;
-      } catch (error) {
-        console.error("Error:", error);
-        resultBox.innerHTML = "<p style='color: red;'>Error analyzing image. Please try again.</p>";
+        } catch (err) {
+          console.error("Error analyzing image:", err);
+          preview.innerHTML += `<p style="color:red;">Error analyzing image. Please try again.</p>`;
+        }
       }
     });
   }
