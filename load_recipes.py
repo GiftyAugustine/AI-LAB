@@ -57,9 +57,9 @@ def load_recipes():
             reader = csv.DictReader(f)
             for i, row in enumerate(reader, start=1):
                 try:
-                    name = row.get("name", "").strip()
-                    ingredients = row.get("ingredients", "").strip()
-                    instructions = row.get("instructions", "").strip()
+                    name = row.get("recipe_name", "").strip()
+                    ingredients = row.get("description", "").strip()
+                    instructions = row.get("description", "").strip()
 
                     if not name or not ingredients:
                         continue  # skip empty rows

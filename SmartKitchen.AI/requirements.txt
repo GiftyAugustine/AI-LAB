@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+python-multipart
+pandas
+transformers
+torch
+torchvision
+pillow
+qwen-vl-utils
+accelerate
+duckduckgo-search
+recipe-scrapers
+beautifulsoup4

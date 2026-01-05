@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartKitchen.AI</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <div class="logo">
+                <i class="fa-solid fa-robot"></i> SmartKitchen<span class="highlight">.AI</span>
+            </div>
+            <p class="subtitle">Visual Ingredient Recognition & Recipe Suggestions powered by QwenVL</p>
+        </header>
+
+        <!-- Main Input Section -->
+        <main>
+            <div class="upload-section" id="drop-zone">
+                <input type="file" id="file-input" accept="image/*" hidden>
+                <div class="upload-content">
+                    <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                    <h3>Upload Food Image</h3>
+                    <p>Drag & drop or click to browse</p>
+                    <p class="hint">Supports JPG, PNG (Max 10MB)</p>
+                </div>
+                <div class="preview-container" id="preview-container" style="display: none;">
+                    <img id="image-preview" src="" alt="Preview">
+                    <button class="remove-btn" onclick="resetUpload()"><i class="fa-solid fa-times"></i></button>
+                </div>
+            </div>
+
+            <button id="analyze-btn" class="cta-btn" disabled>
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Analyze & Suggest Recipes
+            </button>
+
+            <!-- Loading State -->
+            <div id="loading-state" class="hidden">
+                <div class="spinner"></div>
+                <p>Analyzing ingredients with QwenVL-2.5...</p>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results-section" class="hidden">
+                <div class="ingredients-panel">
+                    <h2><i class="fa-solid fa-carrot"></i> Detected Ingredients</h2>
+                    <div id="ingredients-list" class="tags-container">
+                        <!-- Tags injected by JS -->
+                    </div>
+                </div>
+
+                <div class="recipes-panel">
+                    <h2><i class="fa-solid fa-utensils"></i> Suggested Recipes</h2>
+                    <div id="recipes-grid" class="recipes-grid">
+                        <!-- Recipe Cards injected by JS -->
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Recipe Modal -->
+        <div id="recipe-modal" class="modal">
+            <div class="modal-content glass-panel">
+                <span class="close-modal">&times;</span>
+                <h2 id="modal-title">Recipe Name</h2>
+                <div class="modal-meta">
+                    <span id="modal-time"><i class="fa-regular fa-clock"></i> 30m</span>
+                    <span id="modal-rating"><i class="fa-solid fa-star"></i> 4.5</span>
+                </div>
+
+                <div class="modal-body">
+                    <div class="modal-section">
+                        <h3>Ingredients</h3>
+                        <ul id="modal-ingredients"></ul>
+                    </div>
+                    <div class="modal-section">
+                        <h3>Directions</h3>
+                        <ol id="modal-directions"></ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+
+</html>
