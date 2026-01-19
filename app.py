@@ -10,8 +10,16 @@ import traceback
 # Load environment variables (API key)
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='', static_folder='.')
 CORS(app)
+
+@app.route('/')
+def index():
+    return app.send_static_file('index.html')
+
+@app.route('/upload.html')
+def upload_page():
+    return app.send_static_file('upload.html')
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 DB_FILE = "recipes.db"  # local database
@@ -59,63 +67,13 @@ def analyze():
         file = request.files["image"]
         image_b64 = base64.b64encode(file.read()).decode("utf-8")
 
-        print("✅ Image received. Sending to Qwen 2.5 VLM for ingredient analysis...")
+        print("Image received. Sending to Qwen 2.5 VLM for ingredient analysis...")
 
-        payload = {
-            "model": "qwen/qwen-2.5-vl-7b-instruct",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are an expert visual recognition assistant. "
-                        "Analyze the image and extract a clean list of ingredients or food items visible. "
-                        "Output them as a simple list with quantities or counts if possible. "
-                        "Do NOT describe the scene, colors, or background. "
-                        "Format strictly like this: Bananas – 4, Apples – 3, Tomatoes – 2"
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "List only the ingredients you detect in this image:"},
-                        {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image_b64}"}
-                    ]
-                }
-            ]
-        }
+        # Use the extracted function from model_utils
+        from model_utils import analyze_image_with_model
+        ingredients = analyze_image_with_model(image_b64)
 
-        headers = {
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json"
-        }
-
-        # Send request to OpenRouter
-        r = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=60
-        )
-
-        print("🌐 API Response:", r.status_code)
-        print("🔹 Raw Response Preview:", r.text[:400])
-
-        try:
-            data = r.json()
-        except Exception as e:
-            print("❌ Error decoding JSON:", e)
-            traceback.print_exc()
-            return jsonify({"result": "⚠️ Could not parse API response."}), 500
-
-        if "choices" in data:
-            ingredients = data["choices"][0]["message"]["content"]
-            print(f"🧠 Qwen extracted ingredients: {ingredients}")
-        elif "error" in data:
-            ingredients = f"⚠️ API Error: {data['error'].get('message', 'Unknown error')}"
-        else:
-            ingredients = "⚠️ Unexpected response format. Please try again."
-
-        # --- 🔹 NEW: Query recipes database using extracted ingredients ---
+        # --- NEW: Query recipes database using extracted ingredients ---
         recipes = search_recipes(ingredients)
 
         response = {
@@ -126,11 +84,11 @@ def analyze():
         return jsonify(response)
 
     except Exception as e:
-        print("❌ Exception in /analyze:", e)
+        print("Exception in /analyze:", e)
         traceback.print_exc()
         return jsonify({"result": f"Server error: {str(e)}"}), 500
 
 
 if __name__ == "__main__":
-    print("🚀 Starting SmartKitchen.AI backend server...")
+    print("Starting SmartKitchen.AI backend server...")
     app.run(host="0.0.0.0", port=5001)

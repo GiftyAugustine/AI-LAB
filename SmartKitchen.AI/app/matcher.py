@@ -1,158 +1,165 @@
-import pandas as pd
-import ast
-from collections import Counter
+import json
+import os
+import random
 
 class RecipeMatcher:
-    def __init__(self, csv_path: str):
-        self.csv_path = csv_path
-        self.df = pd.read_csv(csv_path)
+    def __init__(self, layer1_path: str, layer2_path: str = None):
+        self.layer1_path = layer1_path
+        self.layer2_path = layer2_path
         self.recipes = []
-        self._preprocess()
+        self._load_data()
 
-    def _preprocess(self):
+    def _load_data(self):
         """
-        Preprocesses the dataframe to parse ingredients and create search sets.
+        Loads Recipe1M+ dataset from layer1 (text) and layer2 (images).
         """
-        for index, row in self.df.iterrows():
-            try:
-                # Parse ingredients from string representation of list of dicts
-                # Handling python-style string with single quotes
-                ing_str = row['Ingredients']
-                ingredients = ast.literal_eval(ing_str)
+        print(f"Loading recipes from {self.layer1_path}...")
+        try:
+            with open(self.layer1_path, 'r') as f:
+                # layer1.json is a list of recipes
+                raw_recipes = json.load(f)
+            
+            # Create a lookup for images if layer2 is provided
+            image_lookup = {}
+            if self.layer2_path and os.path.exists(self.layer2_path):
+                print(f"Loading images from {self.layer2_path}...")
+                with open(self.layer2_path, 'r') as f:
+                    raw_images = json.load(f)
+                    # layer2 struct: [{"id": "...", "images": [{"url": "...", "id": "..."}]}, ...]
+                    for item in raw_images:
+                         if 'images' in item and len(item['images']) > 0:
+                             image_lookup[item['id']] = item['images'][0]['url']
+
+            print(f"Processing {len(raw_recipes)} recipes...")
+            
+            # Limit to 50k for performance if needed, or keep all if memory allows. 
+            # 1.4GB json might be heavy. Let's load the first 20,000 for now to be safe on local machine.
+            # User can increase this limit.
+            LOAD_LIMIT = 20000 
+            
+            count = 0
+            for r in raw_recipes:
+                if count >= LOAD_LIMIT:
+                    break
+                    
+                rid = r.get('id')
+                title = r.get('title', 'Untitled')
                 
-                # Parse directions
-                dir_str = row['Directions']
-                directions = ast.literal_eval(dir_str)
+                # Ingredients in layer1 are often [{"text": "..."}]
+                ingredients_raw = r.get('ingredients', [])
+                valid_ingredients = []
+                search_set = set()
                 
-                # Extract search keywords (names of ingredients)
-                # Normalize to lowercase for better matching
-                ingredient_names = set()
-                for ing in ingredients:
-                    if 'name' in ing and ing['name']:
-                        # Simple tokenization: "skinless, boneless chicken" -> "chicken"
-                        # But for now, let's keep full phrases and individual words
-                        full_name = ing['name'].lower()
-                        ingredient_names.add(full_name)
-                        # Add individual words too
-                        for word in full_name.split():
-                            if len(word) > 2: # filter out 'of', 'in' etc roughly
-                                ingredient_names.add(word)
+                for ing in ingredients_raw:
+                    text = ing.get('text', '')
+                    valid_ingredients.append({"text": text}) # simpler struct
+                    # Add to search set
+                    search_set.add(text.lower())
+                    for word in text.split():
+                        if len(word) > 2:
+                            search_set.add(word.lower())
+
+                instructions = []
+                for inst in r.get('instructions', []):
+                    instructions.append(inst.get('text', ''))
 
                 self.recipes.append({
-                    "id": index,
-                    "name": row['Name'],
-                    "rating": row.get('Rating', 'N/A'), # Handle missing columns gracefully
-                    "prep_time": row.get('Prep Time', ''),
-                    "cook_time": row.get('Cook Time', ''),
-                    "ingredients": ingredients,
-                    "directions": directions,
-                    "_search_set": ingredient_names,
-                    "image_url": row.get('url', None) # Using URL as image placeholder if needed
+                    "id": rid,
+                    "name": title,
+                    "rating": "N/A", # Layer1 implementation doesn't strictly have ratings usually
+                    "prep_time": "",
+                    "cook_time": "",
+                    "ingredients": valid_ingredients,
+                    "directions": instructions,
+                    "_search_set": search_set,
+                    "image_url": image_lookup.get(rid, "")
                 })
-            except Exception as e:
-                print(f"Error parsing row {index}: {e}")
-                continue
+                count += 1
+                
+            print(f"Loaded {len(self.recipes)} recipes into memory.")
 
-    def search(self, detected_ingredients: list[str], limit: int = 6, strict_protein: bool = True, min_coverage: float = 0.4):
+        except Exception as e:
+            print(f"Error loading datasets: {e}")
+            self.recipes = []
+
+    def search(self, detected_ingredients: list[str], limit: int = 6):
         """
-        Search for recipes.
-        Ranking Strategy:
-        Sort by 'Coverage Percentage'.
+        Search strategy:
+        1. Exact Matches: User has ALL required ingredients (ignoring staples).
+        2. Partial Matches: User has at least 20% of ingredients.
         """
-        scored_recipes = []
+        exact_matches = []
+        partial_matches = []
         
-        # User's detected items cleaned
         user_tokens = set()
         for item in detected_ingredients:
-            # simple tokenization
             words = [w.lower() for w in item.split() if len(w) > 2]
             user_tokens.update(words)
-        
-        # Keywords that MUST be present in detected items if they appear in Recipe Title
-        # e.g. If Title has "Chicken", User MUST have "chicken" in their list.
-        PROTEIN_KEYWORDS = ["chicken", "steak", "beef", "pork", "shrimp", "fish", "salmon", "tuna", "lamb", "tofu"]
-        
-        # Common staples to ignore in the denominator (total count) to make coverage score more "fair"
-        # If a recipe is 50% water and salt, we shouldn't penalize the user for not photographing water and salt.
-        STAPLES = {"salt", "water", "olive oil", "vegetable oil", "oil", "pepper", "black pepper", "sugar", "butter"}
-        
+            
         for recipe in self.recipes:
-            recipe_ingredients = recipe['ingredients']
+            recipe_search_set = recipe['_search_set']
             
-            # Calculate Effective Total (ignoring staples)
-            effective_ingredients = []
-            for ing in recipe_ingredients:
-                name = ing.get('name', '').lower()
-                # If the name is roughly just a staple, ignore it
-                # Check exact match or simple variation
-                is_staple = False
-                if name in STAPLES:
-                    is_staple = True
-                else:
-                    # check if name is e.g. "1 cup water" (parsed name usually just "water" but let's be safe)
-                    # Our parser extracted 'name' from the weird string.
-                    # Let's simple check if any staple word is the main part
-                    for staple in STAPLES:
-                        if name == staple or name == f"ground {staple}":
-                            is_staple = True
-                            break
-                
-                if not is_staple:
-                    effective_ingredients.append(ing)
-            
-            total_effective = len(effective_ingredients)
-            if total_effective == 0:
-                total_effective = 1 # avoid div zero
-            
-            recipe_title_lower = recipe['name'].lower()
-            
-            if len(recipe_ingredients) == 0:
-                continue
-                
-            # STRICT CHECK 1: Title mismatch (Only if strict_protein is True)
-            if strict_protein:
-                forbidden = False
-                for prot in PROTEIN_KEYWORDS:
-                    if prot in recipe_title_lower:
-                        # check if user has this protein
-                        if not any(prot in t for t in user_tokens):
-                            forbidden = True
-                            break
-                if forbidden:
-                    continue
-
+            # Identify missing ingredients
+            missing_ingredients = []
             matches = 0
             
-            # Check overlap against ALL ingredients (we still match against staples if user has them? 
-            # No, user rarely detects staples. But if we detected 'butter', it should count?
-            # Let's count matches against the WHOLE list, but divide by EFFECTIVE list.
-            # This favors the user.
-            for ing_dict in recipe_ingredients:
-                ing_name = ing_dict.get('name', '').lower()
-                ing_words = [w for w in ing_name.split() if len(w) > 2]
-                
-                # Check for overlap
-                if any(w in user_tokens for w in ing_words):
-                    matches += 1
+            # We need to check each ingredient line to see if it's "covered"
+            # This is an approximation because _search_set is a flat set of all words.
+            # A more robust way: Check if ANY word from the user tokens appears in the ingredient text.
             
-            if matches > 0:
-                coverage_score = matches / total_effective
+            effective_total = 0 # meaningful ingredients count
+            STAPLES = {"salt", "water", "oil", "pepper", "sugar", "butter"}
+            
+            for ing_dict in recipe['ingredients']:
+                ing_text = ing_dict['text'].lower()
                 
-                # STRICT CHECK 2: Minimum Coverage
-                if coverage_score < min_coverage:
-                    continue
-                    
-                scored_recipes.append((coverage_score, matches, recipe))
+                # Check if staple
+                is_staple = False
+                for staple in STAPLES:
+                    if f" {staple} " in f" {ing_text} " or ing_text == staple:
+                        is_staple = True
+                        break
+                
+                if not is_staple:
+                    effective_total += 1
+                    # Check coverage
+                    # If any user token is in this ingredient text, we count it as matched
+                    # (Simple heuristic)
+                    if any(token in ing_text for token in user_tokens):
+                        matches += 1
+                    else:
+                        missing_ingredients.append(ing_dict['text'])
+            
+            if effective_total == 0:
+                continue
+
+            coverage = matches / effective_total
+            
+            # Enrich recipe with missing info (create a copy/dict to avoid mutating global cache if we were caching)
+            result_item = {
+                "recipe": recipe,
+                "missing_count": len(missing_ingredients),
+                "missing_ingredients": missing_ingredients,
+                "coverage": coverage
+            }
+            
+            if len(missing_ingredients) == 0:
+                exact_matches.append(result_item)
+            elif coverage > 0.2: # At least 20% match for partial
+                partial_matches.append(result_item)
         
-        # Sort by coverage descending
-        scored_recipes.sort(key=lambda x: (x[0], x[1]), reverse=True)
+        # Sort Exact: Matches desc (more ingredients used = better?) -> actually just by rating or random
+        exact_matches.sort(key=lambda x: -len(x['recipe']['ingredients'])) 
         
-        return [item[2] for item in scored_recipes[:limit]]
+        # Sort Partial: Coverage desc, then missing count asc
+        partial_matches.sort(key=lambda x: (-x['coverage'], x['missing_count']))
+        
+        return {
+            "exact": [item for item in exact_matches[:limit]],
+            "partial": [item for item in partial_matches[:limit]]
+        }
 
 if __name__ == "__main__":
-    # Test
-    matcher = RecipeMatcher("../recipes.csv")
-    results = matcher.search(["chicken", "onion"])
-    print(f"Found {len(results)} matches.")
-    if results:
-        print(results[0]['name'])
+    # Test path assumptions
+    matcher = RecipeMatcher("../../recipe1M_layers/layer1.json", "../../recipe1M_layers/layer2.json")
+    print(f"Loaded {len(matcher.recipes)}")

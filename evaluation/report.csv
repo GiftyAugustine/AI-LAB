@@ -1,0 +1,3 @@
+image,status,score,explanation,predicted,ground_truth,missed,hallucinated
+test_image_1.jpg,Missing Image,0,Image not found,,,,
+test_image_2.jpg,Missing Image,0,Image not found,,,,

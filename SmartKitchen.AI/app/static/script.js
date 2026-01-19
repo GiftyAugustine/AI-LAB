@@ -83,38 +83,145 @@ function renderResults(data) {
     resultsSection.classList.remove('hidden');
 
     // 1. Detected Ingredients
-    ingredientsList.innerHTML = data.detected_ingredients.map(ing =>
-        `<span class="ingredient-tag"><i class="fa-solid fa-check"></i> ${ing}</span>`
-    ).join('');
+    // Add Input Box if not exists
+    if (!document.getElementById('add-ingredient-container')) {
+        const addContainer = document.createElement('div');
+        addContainer.id = 'add-ingredient-container';
+        addContainer.className = 'add-ingredient-box';
+        addContainer.innerHTML = `
+            <input type="text" id="new-ingredient" placeholder="Add ingredient...">
+            <button id="add-ing-btn"><i class="fa-solid fa-plus"></i></button>
+        `;
+        ingredientsList.parentNode.insertBefore(addContainer, ingredientsList);
 
-    // 2. Recipes
-    recipesGrid.innerHTML = '';
-    if (data.suggested_recipes.length === 0) {
-        recipesGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center;">No matching recipes found.</p>';
-        return;
+        // Add event listeners
+        const input = addContainer.querySelector('input');
+        const btn = addContainer.querySelector('button');
+
+        const addIngredient = () => {
+            const val = input.value.trim();
+            if (val) {
+                // Add to current list and refresh
+                const currentIngs = Array.from(document.querySelectorAll('.ingredient-tag span')).map(s => s.textContent.trim());
+
+                // Check for duplicates (case-insensitive)
+                if (currentIngs.some(ing => ing.toLowerCase() === val.toLowerCase())) {
+                    alert('Ingredient is already in the list!');
+                    input.value = '';
+                    return;
+                }
+
+                currentIngs.push(val);
+                updateRecipes(currentIngs);
+                input.value = '';
+            }
+        };
+
+        btn.addEventListener('click', addIngredient);
+        input.addEventListener('keypress', (e) => { if (e.key === 'Enter') addIngredient(); });
     }
 
-    data.suggested_recipes.forEach(recipe => {
+    ingredientsList.innerHTML = data.detected_ingredients.map(ing =>
+        `<span class="ingredient-tag">
+            <i class="fa-solid fa-check"></i> <span>${ing}</span>
+            <i class="fa-solid fa-times remove-ing" onclick="removeIngredient('${ing}')"></i>
+        </span>`
+    ).join('');
+
+    // Attach global remover to window if not already
+    if (!window.removeIngredient) {
+        window.removeIngredient = (ingToRemove) => {
+            const currentIngs = Array.from(document.querySelectorAll('.ingredient-tag span')).map(s => s.textContent.trim());
+            const newIngs = currentIngs.filter(i => i !== ingToRemove);
+            updateRecipes(newIngs);
+        };
+    }
+
+    async function updateRecipes(ingredients) {
+        // Show loading or opacity
+        recipesGrid.style.opacity = '0.5';
+
+        try {
+            const response = await fetch('/api/search-recipes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ingredients: ingredients })
+            });
+            const newData = await response.json();
+            renderResults(newData); // Recursive re-render
+        } catch (e) {
+            console.error(e);
+        } finally {
+            recipesGrid.style.opacity = '1';
+        }
+    }
+
+    // 2. Recipes logic
+    recipesGrid.innerHTML = '';
+
+    // Helper to create card
+    const createCard = (recipe, isPartial = false) => {
         const card = document.createElement('div');
         card.className = 'recipe-card';
-        // Use a generic placeholder if image_url is just the recipe page url
-        // We'll create a nice gradient placeholder with text
         const safeRating = recipe.rating && recipe.rating !== 'nan' ? recipe.rating : 'N/A';
 
+        let missingBadge = '';
+        if (isPartial && recipe.missing_count > 0) {
+            missingBadge = `<div class="missing-badge"><i class="fa-solid fa-cart-shopping"></i> Missing ${recipe.missing_count}</div>`;
+        }
+
+        // Try to use image_url if valid, else placeholder
+        let imageContent = `<i class="fa-solid fa-utensils fa-2x"></i>`;
+        if (recipe.image_url && recipe.image_url.startsWith('http')) {
+            imageContent = `<img src="${recipe.image_url}" alt="${recipe.name}" style="width:100%; height:100%; object-fit:cover;">`;
+        }
+
         card.innerHTML = `
+            ${missingBadge}
             <div class="recipe-image">
-                <i class="fa-solid fa-utensils fa-2x"></i>
+                ${imageContent}
             </div>
             <div class="recipe-title">${recipe.name}</div>
             <div class="recipe-meta">
-                <span><i class="fa-regular fa-clock"></i> ${recipe.total_time || recipe.cook_time || '? mins'}</span>
+                <span><i class="fa-regular fa-clock"></i> ${recipe.total_time || recipe.cook_time || '? m'}</span>
                 <span><i class="fa-solid fa-star"></i> ${safeRating}</span>
             </div>
         `;
+        card.addEventListener('click', () => {
+            // If partial, add missing info to modal context
+            recipe._isPartial = isPartial;
+            openModal(recipe);
+        });
+        return card;
+    };
 
-        card.addEventListener('click', () => openModal(recipe));
-        recipesGrid.appendChild(card);
-    });
+    // --- Section 1: Exact Matches ---
+    if (data.exact_matches.length > 0) {
+        const exactSection = document.createElement('div');
+        exactSection.className = 'full-width-section';
+        exactSection.innerHTML = `<h3><i class="fa-solid fa-check-circle"></i> Perfect Matches (Cook Now!)</h3>`;
+        const grid = document.createElement('div');
+        grid.className = 'recipes-grid';
+        data.exact_matches.forEach(r => grid.appendChild(createCard(r, false)));
+        exactSection.appendChild(grid);
+        recipesGrid.appendChild(exactSection);
+    }
+
+    // --- Section 2: Partial Matches ---
+    if (data.partial_matches.length > 0) {
+        const partialSection = document.createElement('div');
+        partialSection.className = 'full-width-section';
+        partialSection.innerHTML = `<h3><i class="fa-solid fa-basket-shopping"></i> Need a Few Items</h3>`;
+        const grid = document.createElement('div');
+        grid.className = 'recipes-grid';
+        data.partial_matches.forEach(r => grid.appendChild(createCard(r, true)));
+        partialSection.appendChild(grid);
+        recipesGrid.appendChild(partialSection);
+    }
+
+    if (data.exact_matches.length === 0 && data.partial_matches.length === 0) {
+        recipesGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center;">No matching recipes found.</p>';
+    }
 }
 
 // Modal Logic
