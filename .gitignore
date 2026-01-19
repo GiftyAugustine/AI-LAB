@@ -5,3 +5,7 @@ recipe1M_layers.tar.gz
 # Ignore any large datasets
 *.json
 
+
+# Python cache
+__pycache__/
+*.pyc
