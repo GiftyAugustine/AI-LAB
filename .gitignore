@@ -1,0 +1,7 @@
+# Ignore Recipe1M dataset
+recipe1M_layers/
+recipe1M_layers.tar.gz
+
+# Ignore any large datasets
+*.json
+
