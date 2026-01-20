@@ -9,3 +9,11 @@ recipe1M_layers.tar.gz
 # Python cache
 __pycache__/
 *.pyc
+
+# Recipe1M dataset
+recipe1M_layers/
+recipe1M_layers.tar.gz
+
+# Python cache
+__pycache__/
+*.pyc
