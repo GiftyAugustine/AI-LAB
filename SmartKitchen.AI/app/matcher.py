@@ -11,12 +11,15 @@ class RecipeMatcher:
 
     def _load_data(self):
         """
-        Loads Recipe1M+ dataset from layer1 (text) and layer2 (images).
+        Loads cleaned Recipe1M+ dataset.
         """
         print(f"Loading recipes from {self.layer1_path}...")
         try:
+            if not os.path.exists(self.layer1_path):
+                print(f"File not found: {self.layer1_path}")
+                return
+
             with open(self.layer1_path, 'r') as f:
-                # layer1.json is a list of recipes
                 raw_recipes = json.load(f)
             
             # Create a lookup for images if layer2 is provided
@@ -25,56 +28,40 @@ class RecipeMatcher:
                 print(f"Loading images from {self.layer2_path}...")
                 with open(self.layer2_path, 'r') as f:
                     raw_images = json.load(f)
-                    # layer2 struct: [{"id": "...", "images": [{"url": "...", "id": "..."}]}, ...]
                     for item in raw_images:
                          if 'images' in item and len(item['images']) > 0:
                              image_lookup[item['id']] = item['images'][0]['url']
 
-            print(f"Processing {len(raw_recipes)} recipes...")
+            print(f"Processing {len(raw_recipes)} cleaned recipes...")
             
-            # Limit to 50k for performance if needed, or keep all if memory allows. 
-            # 1.4GB json might be heavy. Let's load the first 20,000 for now to be safe on local machine.
-            # User can increase this limit.
-            LOAD_LIMIT = 20000 
+            # Increase load limit as data is much cleaner now 
+            LOAD_LIMIT = 100000 
             
-            count = 0
-            for r in raw_recipes:
-                if count >= LOAD_LIMIT:
-                    break
-                    
+            self.recipes = []
+            for r in raw_recipes[:LOAD_LIMIT]:
                 rid = r.get('id')
-                title = r.get('title', 'Untitled')
+                name = r.get('name', 'Untitled')
+                ingredients = r.get('ingredients', [])
                 
-                # Ingredients in layer1 are often [{"text": "..."}]
-                ingredients_raw = r.get('ingredients', [])
-                valid_ingredients = []
+                # Build a search set from words in cleaned ingredients
+                # Since ingredients are already clean, this is much more accurate
                 search_set = set()
-                
-                for ing in ingredients_raw:
-                    text = ing.get('text', '')
-                    valid_ingredients.append({"text": text}) # simpler struct
-                    # Add to search set
-                    search_set.add(text.lower())
-                    for word in text.split():
-                        if len(word) > 2:
-                            search_set.add(word.lower())
-
-                instructions = []
-                for inst in r.get('instructions', []):
-                    instructions.append(inst.get('text', ''))
+                for ing in ingredients:
+                    words = ing.lower().split()
+                    search_set.update(words)
+                    search_set.add(ing.lower())
 
                 self.recipes.append({
                     "id": rid,
-                    "name": title,
-                    "rating": "N/A", # Layer1 implementation doesn't strictly have ratings usually
+                    "name": name,
+                    "rating": "N/A",
                     "prep_time": "",
                     "cook_time": "",
-                    "ingredients": valid_ingredients,
-                    "directions": instructions,
+                    "ingredients": [{"text": ing} for ing in ingredients],
+                    "directions": r.get('instructions', []),
                     "_search_set": search_set,
                     "image_url": image_lookup.get(rid, "")
                 })
-                count += 1
                 
             print(f"Loaded {len(self.recipes)} recipes into memory.")
 
@@ -108,7 +95,7 @@ class RecipeMatcher:
             # A more robust way: Check if ANY word from the user tokens appears in the ingredient text.
             
             effective_total = 0 # meaningful ingredients count
-            STAPLES = {"salt", "water", "oil", "pepper", "sugar", "butter"}
+            STAPLES = {"salt", "water", "oil", "pepper", "sugar"}
             
             for ing_dict in recipe['ingredients']:
                 ing_text = ing_dict['text'].lower()
@@ -161,5 +148,14 @@ class RecipeMatcher:
 
 if __name__ == "__main__":
     # Test path assumptions
-    matcher = RecipeMatcher("../../recipe1M_layers/layer1.json", "../../recipe1M_layers/layer2.json")
+    # Update to use processed file
+    processed_path = os.path.join(os.path.dirname(__file__), "../../recipe1M_layers/processed_layer1.json")
+    layer2_path = os.path.join(os.path.dirname(__file__), "../../recipe1M_layers/layer2.json")
+    matcher = RecipeMatcher(processed_path, layer2_path)
     print(f"Loaded {len(matcher.recipes)}")
+    
+    # Simple test search
+    results = matcher.search(["chicken", "onions", "garlic"])
+    print(f"Found {len(results['exact'])} exact and {len(results['partial'])} partial matches.")
+    if results['exact']:
+        print(f"Top exact: {results['exact'][0]['recipe']['name']}")

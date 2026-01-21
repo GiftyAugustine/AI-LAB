@@ -21,11 +21,12 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 # Mount static files
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# Initialize Logic
-# Use relative path assuming we run from 'app' parent or adjust accordingly
-# We will run uvicorn from the root folder: python -m uvicorn app.main:app
-DATASET_DIR = r"C:\Users\kezia\recipe1M_layers"
-LAYER1_PATH = os.path.join(DATASET_DIR, "layer1.json")
+# Determine the dataset directory relative to the project root
+# Assuming AI-LAB is the root and contains recipe1M_layers
+# Current file is at AI-LAB/SmartKitchen.AI/app/main.py
+PROJECT_ROOT = os.path.dirname(os.path.dirname(BASE_DIR))
+DATASET_DIR = os.path.join(PROJECT_ROOT, "recipe1M_layers")
+LAYER1_PATH = os.path.join(DATASET_DIR, "processed_layer1.json")
 LAYER2_PATH = os.path.join(DATASET_DIR, "layer2.json")
 matcher = RecipeMatcher(LAYER1_PATH, LAYER2_PATH)
 analyzer = QwenVLAnalyzer() # Uses default, handling CPU/MPS logic internally
