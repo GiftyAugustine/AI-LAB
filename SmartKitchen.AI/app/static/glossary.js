@@ -7,7 +7,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Load glossary data
     try {
-        const response = await fetch('/static/glossary.json');
+        // Add cache-busting query parameter
+        const response = await fetch(`/static/glossary.json?t=${Date.now()}`);
         glossaryData = await response.json();
         renderGlossary(glossaryData);
         renderAlphabetNav(Object.keys(glossaryData).sort());

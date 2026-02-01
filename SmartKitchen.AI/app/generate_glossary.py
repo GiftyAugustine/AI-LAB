@@ -11,23 +11,23 @@ def generate_glossary(input_path, output_path, limit_recipes=100000, min_freq=5)
     with open(input_path, 'r') as f:
         recipes = json.load(f)
 
+    import re
     print(f"Counting ingredients in top {limit_recipes} recipes...")
     counts = Counter()
     for r in recipes[:limit_recipes]:
-        counts.update(r.get('ingredients', []))
+        for ing in r.get('ingredients', []):
+            # Remove all types of whitespace and check if it's a single alphabetic word
+            name = ing.lower().strip()
+            # Strict single word check: only letters, no spaces or special chars
+            if re.match(r'^[a-z]+$', name):
+                counts[name] += 1
 
     # Basic normalization and filtering
     normalized = {}
-    for ing, count in counts.items():
+    for name, count in counts.items():
         if count < min_freq:
             continue
-        
-        name = ing.lower().strip()
-        if not name:
-            continue
             
-        # Very basic plural normalization: if "eggs" exists and "egg" exists, use "egg"
-        # Since we are iterating, we can do a second pass
         normalized[name] = count
 
     # Second pass for plural merging
