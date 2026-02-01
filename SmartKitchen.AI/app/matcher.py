@@ -78,27 +78,20 @@ class RecipeMatcher:
         exact_matches = []
         partial_matches = []
         
-        user_tokens = set()
-        for item in detected_ingredients:
-            words = [w.lower() for w in item.split() if len(w) > 2]
-            user_tokens.update(words)
-            
+        user_ingredients = {item.lower().strip() for item in detected_ingredients}
+        
         for recipe in self.recipes:
-            recipe_search_set = recipe['_search_set']
-            
             # Identify missing ingredients
             missing_ingredients = []
             matches = 0
             
-            # We need to check each ingredient line to see if it's "covered"
-            # This is an approximation because _search_set is a flat set of all words.
-            # A more robust way: Check if ANY word from the user tokens appears in the ingredient text.
+            # Use strict matching: The recipe ingredient string must be one of the detected strings
             
             effective_total = 0 # meaningful ingredients count
             STAPLES = {"salt", "water", "oil", "pepper", "sugar"}
             
             for ing_dict in recipe['ingredients']:
-                ing_text = ing_dict['text'].lower()
+                ing_text = ing_dict['text'].lower().strip()
                 
                 # Check if staple
                 is_staple = False
@@ -109,10 +102,8 @@ class RecipeMatcher:
                 
                 if not is_staple:
                     effective_total += 1
-                    # Check coverage
-                    # If any user token is in this ingredient text, we count it as matched
-                    # (Simple heuristic)
-                    if any(token in ing_text for token in user_tokens):
+                    # Strict matching
+                    if ing_text in user_ingredients:
                         matches += 1
                     else:
                         missing_ingredients.append(ing_dict['text'])
