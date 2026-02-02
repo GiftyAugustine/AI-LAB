@@ -35,7 +35,7 @@ class RecipeMatcher:
             print(f"Processing {len(raw_recipes)} cleaned recipes...")
             
             # Increase load limit as data is much cleaner now 
-            LOAD_LIMIT = 100000 
+            LOAD_LIMIT = 1000000
             
             self.recipes = []
             for r in raw_recipes[:LOAD_LIMIT]:
