@@ -1,78 +1,62 @@
 # SmartKitchen.AI Technical Overview
 
-SmartKitchen.AI is an AI-powered culinary assistant that bridges the gap between the ingredients in your pantry and a database of over 1 million recipes. It uses a **Vision Language Model (VLM)** to identify ingredients from images and an optimized matching algorithm to suggest what you can cook.
-
-## 1. System Architecture
-The application follows a modern **FastAPI** backend structure with a vanilla JavaScript frontend. It is designed to handle high-latency AI tasks (like ingredient detection) while maintaining a responsive user interface.
-
-```mermaid
-graph TD
-    User((User)) -->|Upload Image| Frontend[Web UI - index.html/js]
-    Frontend -->|POST /api/process-image| API[FastAPI Server - main.py]
-    API -->|Raw Bytes| VLM[VLM Analyzer - vlm.py]
-    VLM -->|Text List| API
-    API -->|Ingredient List| Matcher[Recipe Matcher - matcher.py]
-    Matcher -->|Load| Dataset[(Recipe1M JSON)]
-    Matcher -->|Return Matches| API
-    API -->|JSON Response| Frontend
-    Frontend -->|Display| User
-```
+SmartKitchen.AI is an AI-powered culinary assistant that identifies ingredients from images and suggests recipes using an optimized matching algorithm against 876,997 preprocessed recipes.
 
 ---
 
-## 2. Core Components
+## 🚀 Key Technologies Explained
 
-### 🟢 `app/main.py` (The Orchestra Leader)
-This is the entry point of the FastAPI application.
-- **Routing**: Defines endpoints for image processing (`/api/process-image`) and text-based searching (`/api/search-recipes`).
-- **Initialization**: Instantiates the `RecipeMatcher` (loading the dataset into memory) and the `QwenVLAnalyzer` (loading the AI model).
-- **Static Hosting**: Serves the frontend files (HTML, CSS, JS) from the `/static` directory.
+To understand how SmartKitchen.AI works, here is a breakdown of the core technologies used in this project:
 
-### 🟢 `app/vlm.py` (The Eyes)
-Handles the Vision Language Model logic.
-- **Model**: Uses **Qwen2-VL-2B**, a powerful multimodal model.
-- **Optimization**: Automatically detects GPU (MPS on Mac). Configured with **BFloat16** precision for a balance of speed and memory efficiency.
-- **Task**: Executes the prompt: *"List the ingredients found in this image, separated by commas."*
+### 🟢 **FastAPI**
+FastAPI is the modern, high-performance web framework used for the backend. It is called "Fast" because it is one of the fastest Python frameworks available, rivaling NodeJS and Go. It uses **Asynchronous (async)** programming, allowing the server to handle multiple requests (like image uploads and recipe searches) simultaneously without one task blocking another.
 
-### 🟢 `app/matcher.py` (The Brain)
-Handles the recipe matching logic.
-- **Dataset Loading**: Reads `processed_layer1.json`, keeping a configurable subset in memory for speed.
-- **Matching Logic**:
-    - **Staple Removal**: Ignores common items like "salt", "water", or "sugar" in coverage calculations.
-    - **Strict Match**: Requires exact string matching after normalization.
-- **Ranking**: Matches are ranked by **coverage** (percentage of recipe ingredients owned by the user).
+### 🟢 **VLM (Vision Language Model)**
+A Vision Language Model is a type of AI that can "see" images and "speak" text. Unlike basic image classifiers that just pick a category (e.g., "dog" or "cat"), a VLM understands the context. In this app, we use **Qwen2-VL-2B**, which can read recipe ingredients, identify textures, and even understand quantities from a photo.
 
----
+### 🟢 **Glassmorphism**
+This is the UI design style used for the frontend. It creates a "frosted glass" effect where interface elements have semi-transparent backgrounds with a subtle blur. This gives the application a premium, modern, and deep aesthetic, making it feel more like a native high-end app rather than a simple webpage.
 
-## 3. Data Pipeline & Preprocessing
+### 🟢 **BFloat16 (Brain Floating Point 16)**
+This is a specialized mathematical format used by AI models to save memory. Standard computers use Float32 (32 bits), but AI models are so large that they would eat up all your RAM. BFloat16 cuts the size in half while keeping the most important information intact, allowing the 2-billion parameter Qwen model to run smoothly on home computers.
 
-### 🛠️ `clean_dataset.py`
-Converts raw Recipe1M data into a clean, searchable format.
-- **Filters**: Removes non-dish recipes (mixes, extracts, rubs).
-- **Normalization**: Strips units (oz, g, ml) and descriptors (chopped, minced) to leave core ingredient names.
-- **Augmentation**: Scans instructions for ingredients missing from the formal list.
+### 🟢 **MPS (Metal Performance Shaders)**
+On macOS, we use MPS to tap into the power of Apple's **M1/M2/M3 chips**. It allows the AI model to run on your Mac's GPU (Graphics Processing Unit) instead of just the CPU. This results in ingredient detection that is often 5-10 times faster than CPU-only processing.
 
-### 🛠️ `generate_glossary.py`
-Powers the "Alphabetical Index" feature.
-- **Aggregation**: Scans the dataset to count unique ingredient frequencies.
-- **Grouping**: Organizes ingredients alphabetically to create `glossary.json`.
+### 🟢 **Uvicorn**
+Uvicorn is the "engine" that runs the FastAPI application. It is an **ASGI (Asynchronous Server Gateway Interface)** server. While FastAPI defines the logic, Uvicorn acts as the delivery man, receiving requests from the internet and passing them into the code.
 
 ---
 
-## 4. Frontend Design (`app/static/`)
-- **`index.html`**: A premium, dark-themed UI utilizing glassmorphism.
-- **`script.js`**: 
-    - Manages drag-and-drop image uploads.
-    - Handles "Detected Ingredients" state (add/remove items).
-    - Renders dynamic recipe cards with match percentages and missing labels.
+## ⚙️ Core Components
+
+### 📂 `app/main.py`
+The "Brain" of the communication layer.
+- **Dynamic Routing**: Manages the API endpoints.
+- **Static Hosting**: Efficiently serves the glassmorphic frontend to your browser.
+- **Workflow Management**: Coordinates between the image analyzer and the recipe matcher.
+
+### 📂 `app/vlm.py`
+The "Eyes" of the application.
+- **Model Loading**: Dynamically switches to **CPU** or **MPS (GPU)** based on your hardware.
+- **Image Processing**: Resizes and optimizes your photos before sending them to the AI to ensure fast response times.
+- **Ingredient Extraction**: Converts visual data into a comma-separated list of text ingredients.
+
+### 📂 `app/matcher.py`
+The "Knowledge Base."
+- **Full Library**: Now loads over **876,997 cleaned recipes** into memory for instant searching.
+- **Exact Staple Logic**: We use a strict filter for staple foods (salt, sugar, water, oil). It only skips these if they are exact matches, ensuring "olive oil" or "sea salt" are correctly treated as unique ingredients.
+- **Refined Matching**: Calculates **Coverage Score** (how many items you have vs. how many you need) and provides "Perfect Matches" vs "Partial Matches."
 
 ---
 
-## 5. Summary of Workflow
-1. **Preprocessing**: `clean_dataset.py` cleans the raw 1.4GB dataset.
-2. **Startup**: `uvicorn` starts the server and loads the VLM model.
-3. **Usage**:
-    - User uploads a photo of their ingredients.
-    - `vlm.py` detects the ingredients.
-    - `matcher.py` finds the best-matching recipes.
-    - UI displays results with a focus on "What's missing?".
+## 🧹 Data Preprocessing (`clean_dataset.py`)
+Because the raw dataset (1.4GB) is messy, we run a cleaning script that:
+1. **De-noises**: Removes units like "1 tsp" or "200g" so that only the word "chicken" remains.
+2. **Filters**: Skips recipes that are just spice mixes or drinks, focusing on actual meals.
+3. **Augments**: If a recipe says "fry in oil" in the instructions but forgets "oil" in the list, the script finds it and adds it back.
+
+## 🎨 UI Refinements
+The UI has been streamlined to remove unnecessary metadata:
+- **Clean Interface**: Time taken and Star Ratings have been removed to focus entirely on the ingredients and directions.
+- **Dynamic Tags**: Users can add or remove ingredients identified by the AI to refine their search results manually.
