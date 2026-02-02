@@ -182,10 +182,6 @@ function renderResults(data) {
                 ${imageContent}
             </div>
             <div class="recipe-title">${recipe.name}</div>
-            <div class="recipe-meta">
-                <span><i class="fa-regular fa-clock"></i> ${recipe.total_time || recipe.cook_time || '? m'}</span>
-                <span><i class="fa-solid fa-star"></i> ${safeRating}</span>
-            </div>
         `;
         card.addEventListener('click', () => {
             // If partial, add missing info to modal context
@@ -235,8 +231,6 @@ const closeBtn = document.querySelector('.close-modal');
 function openModal(recipe) {
     console.log('Opening recipe:', recipe);
     modalTitle.textContent = recipe.name;
-    modalTime.innerHTML = `<i class="fa-regular fa-clock"></i> ${recipe.cook_time || 'N/A'}`;
-    modalRating.innerHTML = `<i class="fa-solid fa-star"></i> ${recipe.rating || 'N/A'}`;
 
     // Format Ingredients
     if (Array.isArray(recipe.ingredients)) {
