@@ -94,11 +94,7 @@ class RecipeMatcher:
                 ing_text = ing_dict['text'].lower().strip()
                 
                 # Check if staple
-                is_staple = False
-                for staple in STAPLES:
-                    if f" {staple} " in f" {ing_text} " or ing_text == staple:
-                        is_staple = True
-                        break
+                is_staple = ing_text in STAPLES
                 
                 if not is_staple:
                     effective_total += 1
