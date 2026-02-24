@@ -1,10 +1,10 @@
-# 📦 Project Dependencies Breakdown
+# Project Dependencies Breakdown
 
 This document explains each requirement in `requirements.txt`, why it is used, and which part of the SmartKitchen.AI ecosystem it supports.
 
 ---
 
-## 🌐 Web & API Layer
+## Web & API Layer
 These libraries form the foundation of our communication and user interface server.
 
 ### **FastAPI**
@@ -21,7 +21,7 @@ These libraries form the foundation of our communication and user interface serv
 
 ---
 
-## 🤖 Vision Intelligence (AI/ML)
+## Vision Intelligence (AI/ML)
 These libraries power the "Eyes" of the application—identifying food from your photos.
 
 ### **Torch & Torchvision**
@@ -46,7 +46,7 @@ These libraries power the "Eyes" of the application—identifying food from your
 
 ---
 
-## 📊 Data Processing & Evaluation
+## Data Processing & Evaluation
 Used for managing the nearly 1 million recipes and analyzing performance.
 
 ### **Pandas**
@@ -59,7 +59,7 @@ Used for managing the nearly 1 million recipes and analyzing performance.
 
 ---
 
-## 🕸️ Web Scraping Engine
+## Web Scraping Engine
 These libraries allow the app to "look up" recipes online when the local database doesn't have a perfect match.
 
 ### **DuckDuckGo-Search**
