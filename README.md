@@ -1,4 +1,4 @@
-# 🍳 SmartKitchen.AI
+# SmartKitchen.AI
 
 ### Your AI-Powered Culinary Assistant
 
@@ -6,17 +6,17 @@ SmartKitchen.AI is an intelligent culinary assistant that identifies food ingred
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-- **📸 Vision-to-Recipe**: Upload a photo of your ingredients, and our local **Qwen2-VL** model will identify them instantly.
-- **🔍 Intelligent Matching**: Advanced algorithm that distinguishes between staples (salt, oil) and core ingredients to find the perfect recipe.
-- **💎 Premium UI**: A modern, glassmorphic interface designed for a seamless and aesthetically pleasing experience.
-- **🔒 Privacy First**: All image processing happens **locally on your machine**. No photos are ever uploaded to the cloud.
-- **⚡ High Performance**: Optimized for macOS using **Apple Silicon (MPS)** for lightning-fast inference.
+- Vision-to-Recipe**: Upload a photo of your ingredients, and our local **Qwen2-VL** model will identify them instantly.
+- Intelligent Matching**: Advanced algorithm that distinguishes between staples (salt, oil) and core ingredients to find the perfect recipe.
+- Premium UI**: A modern, glassmorphic interface designed for a seamless and aesthetically pleasing experience.
+- Privacy First**: All image processing happens **locally on your machine**. No photos are ever uploaded to the cloud.
+- High Performance**: Optimized for macOS using **Apple Silicon (MPS)** for lightning-fast inference.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Backend**: [FastAPI](https://fastapi.tiangolo.com/) (Asynchronous Python Framework)
 - **AI Model**: [Qwen2-VL-2B](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct) (Vision Language Model)
@@ -26,7 +26,7 @@ SmartKitchen.AI is an intelligent culinary assistant that identifies food ingred
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -62,7 +62,7 @@ The application will be available at `http://localhost:8000`.
 
 ---
 
-## ⚙️ Documentation
+## Documentation
 
 For a deeper dive into the architecture, model selection, and dataset preprocessing, please see:
 - [Technical Overview](TECHNICAL_OVERVIEW.md)
@@ -70,7 +70,7 @@ For a deeper dive into the architecture, model selection, and dataset preprocess
 
 ---
 
-## 🛡️ Privacy & Ownership
+## Privacy & Ownership
 
 By default, SmartKitchen.AI runs entirely offline. This means:
 - Your kitchen photos stay on your device.
@@ -79,10 +79,10 @@ By default, SmartKitchen.AI runs entirely offline. This means:
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Whether it's improving the matching algorithm, enhancing the UI, or adding new features, feel free to open a Pull Request.
 
 ---
 
-*Made with ❤️ for home chefs.*
+*Made with love for home chefs.*
